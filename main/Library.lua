@@ -1163,7 +1163,7 @@ do
         local ResetOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
             BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(0, 18, 0, 15);
+            Size = UDim2.new(0, 24, 0, 15);
             ZIndex = 6;
             LayoutOrder = 1;
             Parent = ToggleLabel;

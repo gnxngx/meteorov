@@ -131,6 +131,35 @@ local SaveManager = {} do
 		return true
 	end
 
+	function SaveManager:Delete(name)
+		if (not name) then
+			return false, 'no config file is selected'
+		end
+
+		local file = self.Folder .. '/settings/' .. name .. '.json'
+		if not isfile(file) then
+			return false, 'invalid file'
+		end
+
+		local success, err = pcall(delfile, file)
+		if not success then
+			return false, 'failed to delete file: ' .. tostring(err)
+		end
+
+		-- if the deleted config was set as autoload, clear the autoload file too
+		if isfile(self.Folder .. '/settings/autoload.txt') then
+			local autoloadName = readfile(self.Folder .. '/settings/autoload.txt')
+			if autoloadName == name then
+				pcall(delfile, self.Folder .. '/settings/autoload.txt')
+				if SaveManager.AutoloadLabel then
+					SaveManager.AutoloadLabel:SetText('Current autoload config: none')
+				end
+			end
+		end
+
+		return true
+	end
+
 	function SaveManager:IgnoreThemeSettings()
 		self:SetIgnoreIndexes({ 
 			"BackgroundColor", "MainColor", "AccentColor", "OutlineColor", "FontColor", -- themes
@@ -244,6 +273,24 @@ local SaveManager = {} do
 			end
 
 			self.Library:Notify(string.format('Overwrote config %q', name))
+		end)
+
+		section:AddButton('Delete config', function()
+			local name = Options.SaveManager_ConfigList.Value
+
+			if (not name) or name:gsub(' ', '') == '' then
+				return self.Library:Notify('No config selected', 2)
+			end
+
+			local success, err = self:Delete(name)
+			if not success then
+				return self.Library:Notify('Failed to delete config: ' .. err)
+			end
+
+			self.Library:Notify(string.format('Deleted config %q', name))
+
+			Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
+			Options.SaveManager_ConfigList:SetValue(nil)
 		end)
 
 		section:AddButton('Refresh list', function()

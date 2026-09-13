@@ -1334,6 +1334,18 @@ do
             KeyPicker:Update();
         end;
 
+        function KeyPicker:Reset()
+            KeyPicker.Toggled = false;
+            KeyPicker.Value = 'None';
+            DisplayLabel.Text = 'None';
+
+            Library:SafeCallback(KeyPicker.ChangedCallback, nil)
+            Library:SafeCallback(KeyPicker.Changed, nil)
+
+            KeyPicker:Update();
+            Library:AttemptSave();
+        end;
+
         function KeyPicker:OnClick(Callback)
             KeyPicker.Clicked = Callback
         end
@@ -1401,6 +1413,13 @@ do
                     if _pickingRef then _pickingRef[1] = false end
 
                     if not Key then Event:Disconnect(); return end;
+
+                    if Key == 'Backspace' then
+                        Event:Disconnect();
+                        KeyPicker:Reset();
+                        return;
+                    end;
+
                     DisplayLabel.Text = Key;
                     KeyPicker.Value = Key;
 
@@ -1413,6 +1432,8 @@ do
                 end);
             elseif Input.UserInputType == Enum.UserInputType.MouseButton2 and not Library:MouseIsOverOpenedFrame() then
                 ModeSelectOuter.Visible = true;
+            elseif Input.UserInputType == Enum.UserInputType.MouseButton3 and not Library:MouseIsOverOpenedFrame() then
+                KeyPicker:Reset();
             end;
         end);
 

@@ -1156,6 +1156,7 @@ do
             BorderColor3 = Color3.new(0, 0, 0);
             Size = UDim2.new(0, 28, 0, 15);
             ZIndex = 6;
+            LayoutOrder = 0;
             Parent = ToggleLabel;
         });
 
@@ -1164,7 +1165,7 @@ do
             BorderColor3 = Color3.new(0, 0, 0);
             Size = UDim2.new(0, 18, 0, 15);
             ZIndex = 6;
-            LayoutOrder = -1;
+            LayoutOrder = 1;
             Parent = ToggleLabel;
         });
 
@@ -1377,9 +1378,16 @@ do
 
         function KeyPicker:Reset()
             KeyPicker.Toggled = false;
-            KeyPicker.Value = 'None';
-            DisplayLabel.Text = 'None';
+            KeyPicker.Value = nil;
+            DisplayLabel.Text = '';
 
+            -- turn off the function this keypicker is attached to
+            if ParentObj.Type == 'Toggle' then
+                ParentObj:SetValue(false);
+            end;
+
+            Library:SafeCallback(KeyPicker.Callback, false)
+            Library:SafeCallback(KeyPicker.Clicked, false)
             Library:SafeCallback(KeyPicker.ChangedCallback, nil)
             Library:SafeCallback(KeyPicker.Changed, nil)
 

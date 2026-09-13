@@ -1159,6 +1159,47 @@ do
             Parent = ToggleLabel;
         });
 
+        local ResetOuter = Library:Create('Frame', {
+            BackgroundColor3 = Color3.new(0, 0, 0);
+            BorderColor3 = Color3.new(0, 0, 0);
+            Size = UDim2.new(0, 18, 0, 15);
+            ZIndex = 6;
+            LayoutOrder = -1;
+            Parent = ToggleLabel;
+        });
+
+        local ResetInner = Library:Create('Frame', {
+            BackgroundColor3 = Library.BackgroundColor;
+            BorderColor3 = Library.OutlineColor;
+            BorderMode = Enum.BorderMode.Inset;
+            Size = UDim2.new(1, 0, 1, 0);
+            ZIndex = 7;
+            Parent = ResetOuter;
+        });
+
+        Library:AddToRegistry(ResetInner, {
+            BackgroundColor3 = 'BackgroundColor';
+            BorderColor3 = 'OutlineColor';
+        });
+
+        local ResetLabel = Library:CreateLabel({
+            Size = UDim2.new(1, 0, 1, 0);
+            TextSize = 11;
+            Text = 'RS';
+            TextXAlignment = Enum.TextXAlignment.Center;
+            ZIndex = 8;
+            Parent = ResetInner;
+        });
+
+        Library:OnHighlight(ResetOuter, ResetOuter,
+            { BorderColor3 = 'AccentColor' },
+            { BorderColor3 = 'Black' }
+        );
+
+        if type(Info.ResetTooltip) == 'string' then
+            Library:AddToolTip(Info.ResetTooltip, ResetOuter)
+        end
+
         local PickInner = Library:Create('Frame', {
             BackgroundColor3 = Library.BackgroundColor;
             BorderColor3 = Library.OutlineColor;
@@ -1345,6 +1386,12 @@ do
             KeyPicker:Update();
             Library:AttemptSave();
         end;
+
+        ResetOuter.InputBegan:Connect(function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 and not Library:MouseIsOverOpenedFrame() then
+                KeyPicker:Reset();
+            end;
+        end);
 
         function KeyPicker:OnClick(Callback)
             KeyPicker.Clicked = Callback

@@ -157,6 +157,10 @@ local SaveManager = {} do
 			end
 		end
 
+		if self.LastLoaded == name then
+			self.LastLoaded = nil
+		end
+
 		return true
 	end
 
@@ -272,10 +276,16 @@ local SaveManager = {} do
 				return self.Library:Notify(string.format('Config %q is already the autoload config', name), 2)
 			end
 
+			if self.LastLoaded and self.LastLoaded == name then
+				return self.Library:Notify(string.format('Config %q is already loaded', name), 2)
+			end
+
 			local success, err = self:Load(name)
 			if not success then
 				return self.Library:Notify('Failed to load config: ' .. err)
 			end
+
+			self.LastLoaded = name
 
 			self.Library:Notify(string.format('Loaded config %q', name))
 		end)
@@ -286,6 +296,10 @@ local SaveManager = {} do
 			local success, err = self:Save(name)
 			if not success then
 				return self.Library:Notify('Failed to overwrite config: ' .. err)
+			end
+
+			if self.LastLoaded == name then
+				self.LastLoaded = nil
 			end
 
 			self.Library:Notify(string.format('Overwrote config %q', name))

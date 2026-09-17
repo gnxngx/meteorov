@@ -213,6 +213,13 @@ local SaveManager = {} do
 		self.Library = library
 	end
 
+	function SaveManager:GetAutoloadConfig()
+		if isfile(self.Folder .. '/settings/autoload.txt') then
+			return readfile(self.Folder .. '/settings/autoload.txt')
+		end
+		return nil
+	end
+
 	function SaveManager:LoadAutoloadConfig()
 		if isfile(self.Folder .. '/settings/autoload.txt') then
 			local name = readfile(self.Folder .. '/settings/autoload.txt')
@@ -255,6 +262,15 @@ local SaveManager = {} do
 			Options.SaveManager_ConfigList:SetValue(nil)
 		end):AddButton('Load config', function()
 			local name = Options.SaveManager_ConfigList.Value
+
+			if (not name) or name:gsub(' ', '') == '' then
+				return self.Library:Notify('No config selected', 2)
+			end
+
+			local autoloadName = self:GetAutoloadConfig()
+			if autoloadName and autoloadName == name then
+				return self.Library:Notify(string.format('Config %q is already the autoload config', name), 2)
+			end
 
 			local success, err = self:Load(name)
 			if not success then

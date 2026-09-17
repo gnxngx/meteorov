@@ -1322,7 +1322,7 @@ do
 
             local State = KeyPicker:GetState();
 
-            ContainerLabel.Text = string.format('[%s] %s (%s)', KeyPicker.Value or 'None', Info.Text, KeyPicker.Mode);
+            ContainerLabel.Text = string.format('[%s] %s (%s)', KeyPicker.Value or '', Info.Text, KeyPicker.Mode);
 
             ContainerLabel.Visible = true;
             ContainerLabel.TextColor3 = State and Library.AccentColor or Library.FontColor;
@@ -1370,6 +1370,7 @@ do
 
         function KeyPicker:SetValue(Data)
             local Key, Mode = Data[1], Data[2];
+            if Key == 'None' then Key = nil end;
             DisplayLabel.Text = Key or '';
             KeyPicker.Value = Key;
             if ModeButtons[Mode] then ModeButtons[Mode]:Select() end;

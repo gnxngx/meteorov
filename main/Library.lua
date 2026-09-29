@@ -35,6 +35,9 @@ local Library = {
 
     Black = Color3.new(0, 0, 0);
     Font = Enum.Font.Code;
+    TextScale = 1;
+    MinTextScale = 0.7;
+    MaxTextScale = 1.5;
 
     OpenedFrames = {};
     DependencyBoxes = {};
@@ -384,6 +387,7 @@ function Library:MapValue(Value, MinA, MaxA, MinB, MaxB)
 end;
 
 function Library:GetTextBounds(Text, Font, Size, Resolution)
+    Size = math.max(1, math.floor(Size * (Library.TextScale or 1) + 0.5));
     local Bounds = TextService:GetTextSize(Text, Size, Font, Resolution or Vector2.new(1920, 1080))
     return Bounds.X, Bounds.Y
 end;
@@ -1382,7 +1386,6 @@ do
             KeyPicker.Value = nil;
             DisplayLabel.Text = '';
 
-            -- turn off the function this keypicker is attached to
             if ParentObj.Type == 'Toggle' then
                 ParentObj:SetValue(false);
             end;
@@ -2702,19 +2705,10 @@ do
                 Dropdown.Value = nTable;
             else
                 if (not Val) then
-                    -- Раньше здесь Dropdown.Value обнулялся и ниже всё равно
-                    -- вызывался пользовательский Callback(nil) — при загрузке
-                    -- конфига с отсутствующим/невалидным значением для этого
-                    -- дропдауна это давало "Argument 1 missing or nil" внутри
-                    -- чужого callback'а, который не ожидает nil. Теперь просто
-                    -- выходим без изменения Value и без вызова колбэков.
                     return;
                 elseif table.find(Dropdown.Values, Val) then
                     Dropdown.Value = Val;
                 else
-                    -- Значение из конфига не входит в текущий список Values
-                    -- (например список опций поменялся между версиями) —
-                    -- по той же причине просто игнорируем, не трогая колбэк.
                     return;
                 end;
             end;
@@ -3291,6 +3285,11 @@ function Library:CreateWindow(...)
             BorderColor3 = 'OutlineColor';
         });
 
+        function Tab:_UpdateWidth()
+            local W = Library:GetTextBounds(Name, Library.Font, 16);
+            TabButton.Size = UDim2.new(0, W + 8 + 4, 1, 0);
+        end;
+
         local TabButtonLabel = Library:CreateLabel({
             Position = UDim2.new(0, 0, 0, 0);
             Size = UDim2.new(1, 0, 1, -1);
@@ -3327,7 +3326,7 @@ function Library:CreateWindow(...)
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
             Position = UDim2.new(0, 8 - 1, 0, 8 - 1);
-            Size = UDim2.new(0.5, -12 + 2, 0, 507 + 2);
+            Size = UDim2.new(0.5, -12 + 2, 1, -18);
             CanvasSize = UDim2.new(0, 0, 0, 0);
             BottomImage = '';
             TopImage = '';
@@ -3340,7 +3339,7 @@ function Library:CreateWindow(...)
             BackgroundTransparency = 1;
             BorderSizePixel = 0;
             Position = UDim2.new(0.5, 4 + 1, 0, 8 - 1);
-            Size = UDim2.new(0.5, -12 + 2, 0, 507 + 2);
+            Size = UDim2.new(0.5, -12 + 2, 1, -18);
             CanvasSize = UDim2.new(0, 0, 0, 0);
             BottomImage = '';
             TopImage = '';
@@ -3736,6 +3735,7 @@ function Library:CreateWindow(...)
     if Config.AutoShow then task.spawn(function() Library:Toggle() end) end
 
     Window.Holder = Outer;
+    Library._Window = Window;
 
     return Window;
 end;
@@ -3856,6 +3856,129 @@ function Library:SetBackground(decalId)
 
     Library._BackgroundImage.Image = imageToSet;
     Library._BackgroundImage.Visible = true;
+end;
+
+Library.FontList = {
+    'Code', 'RobotoMono', 'Gotham', 'GothamMedium', 'GothamBold', 'GothamBlack',
+    'SourceSans', 'SourceSansSemibold', 'SourceSansBold', 'Ubuntu', 'Roboto',
+    'Arial', 'ArialBold', 'Montserrat', 'Nunito', 'Oswald', 'Highway',
+    'Jura', 'Michroma', 'Fondamento', 'Merriweather', 'Bangers', 'Antique',
+    'SciFi', 'Arcade', 'Fantasy', 'Cartoon', 'Bodoni', 'Garamond',
+};
+
+do
+    local ok = {};
+    for _, Name in ipairs(Library.FontList) do
+        if Enum.Font[Name] ~= nil then ok[#ok + 1] = Name end;
+    end;
+    Library.FontList = ok;
+end;
+
+local _BaseTextSize = setmetatable({}, { __mode = 'k' });
+
+local function _IsText(Obj)
+    return Obj:IsA('TextLabel') or Obj:IsA('TextButton') or Obj:IsA('TextBox');
+end;
+
+local function _ApplyText(Obj)
+    if not _IsText(Obj) then return end;
+    local Base = _BaseTextSize[Obj];
+    if not Base then
+        Base = Obj.TextSize;
+        _BaseTextSize[Obj] = Base;
+    end;
+    Obj.Font = Library.Font;
+    Obj.TextSize = math.max(1, math.floor(Base * Library.TextScale + 0.5));
+end;
+
+ScreenGui.DescendantAdded:Connect(function(Obj)
+    if _IsText(Obj) then
+        task.defer(function()
+            if Obj.Parent then _ApplyText(Obj) end;
+        end);
+    end;
+end);
+
+function Library:_ApplyTextToAll()
+    for _, Obj in ipairs(ScreenGui:GetDescendants()) do
+        _ApplyText(Obj);
+    end;
+
+    local Win = Library._Window;
+    if Win then
+        for _, Tab in next, Win.Tabs do
+            if Tab._UpdateWidth then Tab:_UpdateWidth() end;
+        end;
+    end;
+end;
+
+function Library:SetFont(Font)
+    if type(Font) == 'string' then
+        Font = Enum.Font[Font];
+    end;
+    if typeof(Font) ~= 'EnumItem' or Font.EnumType ~= Enum.Font then
+        return warn('[Library] SetFont: неизвестный шрифт');
+    end;
+
+    Library.Font = Font;
+    Library:_ApplyTextToAll();
+end;
+
+function Library:SetTextScale(Scale)
+    Scale = math.clamp(tonumber(Scale) or 1, Library.MinTextScale, Library.MaxTextScale);
+    Library.TextScale = Scale;
+    Library:_ApplyTextToAll();
+end;
+
+function Library:SetMenuSize(Width, Height)
+    local Outer = Library._WindowOuter;
+    if not Outer then return end;
+
+    if typeof(Width) == 'Vector2' then
+        Width, Height = Width.X, Width.Y;
+    end;
+
+    local Cam = workspace.CurrentCamera;
+    local MaxW = Cam and (Cam.ViewportSize.X - 20) or 1920;
+    local MaxH = Cam and (Cam.ViewportSize.Y - 20) or 1080;
+
+    Width  = math.clamp(math.floor(tonumber(Width)  or 550), 350, math.max(350, MaxW));
+    Height = math.clamp(math.floor(tonumber(Height) or 600), 250, math.max(250, MaxH));
+
+    Outer.Size = UDim2.fromOffset(Width, Height);
+end;
+
+function Library:AddUISettings(Tab, Side)
+    local Box = (Side == 'Right') and Tab:AddRightGroupbox('Menu size & font')
+                                   or Tab:AddLeftGroupbox('Menu size & font');
+
+    local Outer = Library._WindowOuter;
+    local CurW = Outer and Outer.Size.X.Offset or 550;
+    local CurH = Outer and Outer.Size.Y.Offset or 600;
+
+    Box:AddSlider('UI_MenuWidth', {
+        Text = 'Menu width', Default = CurW, Min = 400, Max = 1200, Rounding = 0, Suffix = 'px',
+        Callback = function(V) Library:SetMenuSize(V, Options.UI_MenuHeight and Options.UI_MenuHeight.Value or CurH) end,
+    });
+
+    Box:AddSlider('UI_MenuHeight', {
+        Text = 'Menu height', Default = CurH, Min = 300, Max = 1000, Rounding = 0, Suffix = 'px',
+        Callback = function(V) Library:SetMenuSize(Options.UI_MenuWidth and Options.UI_MenuWidth.Value or CurW, V) end,
+    });
+
+    Box:AddSlider('UI_TextScale', {
+        Text = 'Font size', Default = 100, Min = Library.MinTextScale * 100, Max = Library.MaxTextScale * 100,
+        Rounding = 0, Suffix = '%',
+        Callback = function(V) Library:SetTextScale(V / 100) end,
+    });
+
+    Box:AddDropdown('UI_Font', {
+        Text = 'Font', Values = Library.FontList,
+        Default = table.find(Library.FontList, Library.Font.Name) or 1,
+        Callback = function(V) Library:SetFont(V) end,
+    });
+
+    return Box;
 end;
 
 getgenv().Library = Library

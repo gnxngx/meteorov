@@ -217,39 +217,87 @@ function Library:CreateLabel(Properties, IsHud)
     return _Instance;
 end;
 
+Library.AllowOverlap = false;
+Library._Draggables = setmetatable({}, { __mode = 'k' });
+
+local function _IsReallyVisible(Gui)
+    local Cur = Gui;
+    while Cur and Cur ~= ScreenGui do
+        if Cur:IsA('GuiObject') and not Cur.Visible then return false end;
+        Cur = Cur.Parent;
+    end;
+    return Cur == ScreenGui;
+end;
+
 function Library:MakeDraggable(Instance, Cutoff)
     Instance.Active = true;
+    Library._Draggables[Instance] = true;
 
-    local Dragging = false;
-    local offX, offY = 0, 0;
     local _cutoff = Cutoff or 40;
 
-    local ancX, ancY = 0, 0;
-    local function _cacheAnchor()
-        ancX = Instance.Size.X.Offset * Instance.AnchorPoint.X;
-        ancY = Instance.Size.Y.Offset * Instance.AnchorPoint.Y;
-    end
-    _cacheAnchor();
-    Instance:GetPropertyChangedSignal('Size'):Connect(_cacheAnchor);
-
+    local Dragging = false;
+    local StartMouse, StartAbs, StartPos, LastAbs;
     local _dragConn = nil;
+
+    -- пересекается ли прямоугольник Instance (левый верх = Pos) с другим окном
+    local function Collides(Pos)
+        local Size = Instance.AbsoluteSize;
+        for Other in next, Library._Draggables do
+            if Other ~= Instance and _IsReallyVisible(Other) then
+                local OP, OS = Other.AbsolutePosition, Other.AbsoluteSize;
+                if OS.X > 0 and OS.Y > 0
+                    and Pos.X < OP.X + OS.X and Pos.X + Size.X > OP.X
+                    and Pos.Y < OP.Y + OS.Y and Pos.Y + Size.Y > OP.Y then
+                    return true;
+                end;
+            end;
+        end;
+        return false;
+    end;
+
+    local function Resolve(Cur, Target)
+        if Library.AllowOverlap then return Target end;
+        if not Collides(Target) then return Target end;
+        if Collides(Cur) then return Target end;
+        local OnlyX = Vector2.new(Target.X, Cur.Y);
+        if not Collides(OnlyX) then return OnlyX end;
+        local OnlyY = Vector2.new(Cur.X, Target.Y);
+        if not Collides(OnlyY) then return OnlyY end;
+        return Cur;
+    end;
 
     Instance.InputBegan:Connect(function(Input)
         if Input.UserInputType == Enum.UserInputType.MouseButton1 then
             local absPos = Instance.AbsolutePosition;
             local dy = Mouse.Y - absPos.Y;
             if dy > _cutoff then return end;
-            offX = Mouse.X - absPos.X;
-            offY = dy;
-            Dragging = true;
 
+            Dragging   = true;
+            StartMouse = Vector2.new(Input.Position.X, Input.Position.Y);
+            StartAbs   = absPos;
+            StartPos   = Instance.Position;
+            LastAbs    = absPos;
+
+            if _dragConn then _dragConn:Disconnect() end;
             _dragConn = InputService.InputChanged:Connect(function(Input)
-                if Input.UserInputType == Enum.UserInputType.MouseMovement then
-                    Instance.Position = UDim2.fromOffset(
-                        Input.Position.X - offX + ancX,
-                        Input.Position.Y - offY + ancY
-                    );
+                if not Dragging then return end;
+                if Input.UserInputType ~= Enum.UserInputType.MouseMovement then return end;
+
+                local Wanted = StartAbs + (Vector2.new(Input.Position.X, Input.Position.Y) - StartMouse);
+
+                local Dist  = math.max(math.abs(Wanted.X - LastAbs.X), math.abs(Wanted.Y - LastAbs.Y));
+                local Steps = math.max(1, math.ceil(Dist / 8));
+                local From, Pos = LastAbs, LastAbs;
+                for i = 1, Steps do
+                    Pos = Resolve(Pos, From:Lerp(Wanted, i / Steps));
                 end;
+                LastAbs = Pos;
+
+                local Delta = Pos - StartAbs;
+                Instance.Position = UDim2.new(
+                    StartPos.X.Scale, StartPos.X.Offset + Delta.X,
+                    StartPos.Y.Scale, StartPos.Y.Offset + Delta.Y
+                );
             end);
         end;
     end);
@@ -2442,19 +2490,43 @@ do
             Parent = ScreenGui;
         });
 
+        local DesiredListHeight = MAX_DROPDOWN_ITEMS * 20 + 2;
+
         local function RecalculateListPosition()
-            local screenHeight = ScreenGui.AbsoluteSize.Y;
-            local dropBottom = DropdownOuter.AbsolutePosition.Y + DropdownOuter.Size.Y.Offset;
-            local listHeight = ListOuter.AbsoluteSize.Y;
-            if dropBottom + listHeight + 1 > screenHeight then
-                ListOuter.Position = UDim2.fromOffset(DropdownOuter.AbsolutePosition.X, DropdownOuter.AbsolutePosition.Y - listHeight - 1);
-            else
-                ListOuter.Position = UDim2.fromOffset(DropdownOuter.AbsolutePosition.X, dropBottom + 1);
+            local Screen   = ScreenGui.AbsoluteSize;
+            local DropPos  = DropdownOuter.AbsolutePosition;
+            local DropSize = DropdownOuter.AbsoluteSize;
+
+            local Width  = DropSize.X;
+            local Height = DesiredListHeight;
+
+            local Below = Screen.Y - (DropPos.Y + DropSize.Y) - 1;
+            local Above = DropPos.Y - 1;
+            local GoUp  = false;
+
+            if Height > Below then
+                if Height <= Above or Above > Below then
+                    GoUp = true;
+                end;
+                local Space = GoUp and Above or Below;
+                if Screen.Y > 0 and Height > Space then
+                    Height = math.max(22, Space);
+                end;
             end;
+
+            local X = DropPos.X;
+            if Screen.X > 0 then
+                X = math.clamp(X, 0, math.max(0, Screen.X - Width));
+            end;
+
+            local Y = GoUp and (DropPos.Y - Height - 1) or (DropPos.Y + DropSize.Y + 1);
+
+            ListOuter.Size = UDim2.fromOffset(Width, Height);
+            ListOuter.Position = UDim2.fromOffset(X, Y);
         end;
 
         local function RecalculateListSize(YSize)
-            ListOuter.Size = UDim2.fromOffset(DropdownOuter.AbsoluteSize.X, YSize or (MAX_DROPDOWN_ITEMS * 20 + 2))
+            DesiredListHeight = YSize or (MAX_DROPDOWN_ITEMS * 20 + 2);
             RecalculateListPosition();
         end;
 
@@ -2731,11 +2803,8 @@ do
 
         Library:GiveSignal(InputService.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 then
-                local AbsPos, AbsSize = ListOuter.AbsolutePosition, ListOuter.AbsoluteSize;
-
-                if Mouse.X < AbsPos.X or Mouse.X > AbsPos.X + AbsSize.X
-                    or Mouse.Y < (AbsPos.Y - 20 - 1) or Mouse.Y > AbsPos.Y + AbsSize.Y then
-
+                if not ListOuter.Visible then return end;
+                if not Library:IsMouseOverFrame(ListOuter) and not Library:IsMouseOverFrame(DropdownOuter) then
                     Dropdown:CloseDropdown();
                 end;
             end;
@@ -3930,6 +3999,10 @@ function Library:SetTextScale(Scale)
     Library:_ApplyTextToAll();
 end;
 
+function Library:SetAllowOverlap(Bool)
+    Library.AllowOverlap = Bool and true or false;
+end;
+
 function Library:SetMenuSize(Width, Height)
     local Outer = Library._WindowOuter;
     if not Outer then return end;
@@ -3976,6 +4049,12 @@ function Library:AddUISettings(Tab, Side)
         Text = 'Font', Values = Library.FontList,
         Default = table.find(Library.FontList, Library.Font.Name) or 1,
         Callback = function(V) Library:SetFont(V) end,
+    });
+
+    Box:AddToggle('UI_AllowOverlap', {
+        Text = 'Allow windows overlap', Default = false,
+        Tooltip = 'Выкл: окна (меню, watermark, списки) не проходят друг через друга',
+        Callback = function(V) Library:SetAllowOverlap(V) end,
     });
 
     return Box;

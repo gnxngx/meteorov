@@ -217,7 +217,7 @@ function Library:CreateLabel(Properties, IsHud)
     return _Instance;
 end;
 
-Library.AllowOverlap = false;
+Library.AllowOverlap = true;
 Library._Draggables = setmetatable({}, { __mode = 'k' });
 
 local function _IsReallyVisible(Gui)
@@ -239,7 +239,6 @@ function Library:MakeDraggable(Instance, Cutoff)
     local StartMouse, StartAbs, StartPos, LastAbs;
     local _dragConn = nil;
 
-    -- пересекается ли прямоугольник Instance (левый верх = Pos) с другим окном
     local function Collides(Pos)
         local Size = Instance.AbsoluteSize;
         for Other in next, Library._Draggables do
@@ -2804,6 +2803,7 @@ do
         Library:GiveSignal(InputService.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                 if not ListOuter.Visible then return end;
+
                 if not Library:IsMouseOverFrame(ListOuter) and not Library:IsMouseOverFrame(DropdownOuter) then
                     Dropdown:CloseDropdown();
                 end;
@@ -4052,8 +4052,7 @@ function Library:AddUISettings(Tab, Side)
     });
 
     Box:AddToggle('UI_AllowOverlap', {
-        Text = 'Allow windows overlap', Default = false,
-        Tooltip = 'Выкл: окна (меню, watermark, списки) не проходят друг через друга',
+        Text = 'Allow windows overlap', Default = true,
         Callback = function(V) Library:SetAllowOverlap(V) end,
     });
 

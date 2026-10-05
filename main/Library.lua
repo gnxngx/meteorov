@@ -35,15 +35,15 @@ local Library = {
 
     Black = Color3.new(0, 0, 0);
 
-    AccentColor2 = Color3.fromRGB(80, 140, 255);
+    AccentColor2 = Color3.fromRGB(140, 255, 0);
     AccentFill = Color3.new(1, 1, 1);
     GradientEnabled = true;
     GradientRotation = 0;
     GlowEnabled = true;
-    GlowSize = 8;
-    GlowIntensity = 60;
+    GlowSize = 20;
+    GlowIntensity = 20;
     GlowFollowAccent = true;
-    GlowColor = Color3.fromRGB(61, 180, 136);
+    GlowColor = Color3.fromRGB(255, 255, 255);
     _Glows = {};
     _AccentGradients = {};
 

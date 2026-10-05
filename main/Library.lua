@@ -34,6 +34,20 @@ local Library = {
     RiskColor = Color3.fromRGB(255, 50, 50);
 
     Black = Color3.new(0, 0, 0);
+
+    -- ===== Glow / Gradient settings =====
+    AccentColor2 = Color3.fromRGB(80, 140, 255);   -- второй цвет градиента
+    AccentFill = Color3.fromRGB(61, 180, 136);     -- что реально ставится в BackgroundColor3 акцентных заливок
+    GradientEnabled = false;
+    GradientRotation = 0;                          -- 0 = слева направо, 90 = сверху вниз
+    GlowEnabled = true;
+    GlowSize = 6;                                  -- радиус свечения в px
+    GlowIntensity = 50;                            -- 0..100 (прозрачность = 1 - intensity/100)
+    GlowFollowAccent = true;                       -- свечение берёт AccentColor
+    GlowColor = Color3.fromRGB(61, 180, 136);
+    _Glows = {};
+    _AccentGradients = {};
+
     Font = Enum.Font.Code;
     TextScale = 1;
     MinTextScale = 0.7;
@@ -506,6 +520,7 @@ function Library:RemoveFromRegistry(Instance)
 end;
 
 function Library:UpdateColorsUsingRegistry()
+    Library:RefreshAccent();
     local reg = Library.Registry;
     local lib = Library;
     local _type = type;
@@ -522,6 +537,106 @@ function Library:UpdateColorsUsingRegistry()
             end;
         end;
     end;
+    Library:UpdateGradients();
+    Library:UpdateGlows();
+end;
+
+-- ================= Gradient =================
+function Library:RefreshAccent()
+    -- при включённом градиенте заливка должна быть белой: UIGradient умножается на BackgroundColor3
+    Library.AccentFill = Library.GradientEnabled and Color3.new(1, 1, 1) or Library.AccentColor;
+end;
+
+function Library:GetAccentGradient()
+    return ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Library.AccentColor),
+        ColorSequenceKeypoint.new(1, Library.AccentColor2),
+    });
+end;
+
+-- Cond (необяз.) — функция, когда градиент должен быть включён (например только пока Toggle.Value == true)
+function Library:AddAccentGradient(Frame, Cond, Rotation)
+    local G = Library:Create('UIGradient', {
+        Color = Library:GetAccentGradient();
+        Rotation = Rotation or Library.GradientRotation;
+        Enabled = Library.GradientEnabled and (not Cond or Cond());
+        Parent = Frame;
+    });
+    Library._AccentGradients[G] = { Cond = Cond; Fixed = Rotation };
+    return G;
+end;
+
+function Library:UpdateGradients()
+    local seq = Library:GetAccentGradient();
+    for G, Data in next, Library._AccentGradients do
+        if not G.Parent then
+            Library._AccentGradients[G] = nil;
+        else
+            G.Color = seq;
+            G.Rotation = Data.Fixed or Library.GradientRotation;
+            G.Enabled = Library.GradientEnabled and (not Data.Cond or Data.Cond());
+        end;
+    end;
+end;
+
+function Library:SetGradient(Enabled, Color2, Rotation)
+    if Enabled ~= nil then Library.GradientEnabled = Enabled and true or false end;
+    if typeof(Color2) == 'Color3' then Library.AccentColor2 = Color2 end;
+    if type(Rotation) == 'number' then Library.GradientRotation = Rotation end;
+    Library:UpdateColorsUsingRegistry();
+end;
+
+-- ================= Glow =================
+local GLOW_IMAGE = 'rbxassetid://5028857084';
+
+function Library:GetGlowColor()
+    return Library.GlowFollowAccent and Library.AccentColor or Library.GlowColor;
+end;
+
+-- Opts: Size (px), ZIndex, Cond (функция видимости), Always (игнорировать Library.GlowEnabled — нет)
+function Library:AddGlow(Parent, Opts)
+    Opts = Opts or {};
+    local Glow = Library:Create('ImageLabel', {
+        Name = 'Glow';
+        BackgroundTransparency = 1;
+        BorderSizePixel = 0;
+        Image = GLOW_IMAGE;
+        ScaleType = Enum.ScaleType.Slice;
+        SliceCenter = Rect.new(24, 24, 276, 276);
+        ImageColor3 = Library:GetGlowColor();
+        ImageTransparency = 1 - Library.GlowIntensity / 100;
+        ZIndex = Opts.ZIndex or math.max(Parent.ZIndex - 1, 0);
+        Visible = false;
+        Parent = Parent;
+    });
+
+    Library._Glows[Glow] = { Cond = Opts.Cond; SizeMul = Opts.SizeMul or 1 };
+    Library:UpdateGlows();
+    return Glow;
+end;
+
+function Library:UpdateGlows()
+    local Color = Library:GetGlowColor();
+    local Trans = 1 - math.clamp(Library.GlowIntensity, 0, 100) / 100;
+    for Glow, Data in next, Library._Glows do
+        if not Glow.Parent then
+            Library._Glows[Glow] = nil;
+        else
+            local S = math.floor(Library.GlowSize * Data.SizeMul);
+            Glow.ImageColor3 = Color;
+            Glow.ImageTransparency = Trans;
+            Glow.Size = UDim2.new(1, S * 2, 1, S * 2);
+            Glow.Position = UDim2.new(0, -S, 0, -S);
+            Glow.Visible = Library.GlowEnabled and (not Data.Cond or Data.Cond());
+        end;
+    end;
+end;
+
+function Library:SetGlow(Enabled, Size, Intensity)
+    if Enabled ~= nil then Library.GlowEnabled = Enabled and true or false end;
+    if type(Size) == 'number' then Library.GlowSize = Size end;
+    if type(Intensity) == 'number' then Library.GlowIntensity = Intensity end;
+    Library:UpdateGlows();
 end;
 
 function Library:GiveSignal(Signal)
@@ -2079,6 +2194,9 @@ do
             BorderColor3 = 'OutlineColor';
         });
 
+        local ToggleGradient = Library:AddAccentGradient(ToggleInner, function() return Toggle.Value end);
+        local ToggleGlow = Library:AddGlow(ToggleOuter, { Cond = function() return Toggle.Value end });
+
         local ToggleLabel = Library:CreateLabel({
             Size = UDim2.new(0, 216, 1, 0);
             Position = UDim2.new(1, 6, 0, 0);
@@ -2118,11 +2236,14 @@ do
         end
 
         function Toggle:Display()
-            ToggleInner.BackgroundColor3 = Toggle.Value and Library.AccentColor or Library.MainColor;
+            ToggleInner.BackgroundColor3 = Toggle.Value and Library.AccentFill or Library.MainColor;
             ToggleInner.BorderColor3 = Toggle.Value and Library.AccentColorDark or Library.OutlineColor;
 
-            Library.RegistryMap[ToggleInner].Properties.BackgroundColor3 = Toggle.Value and 'AccentColor' or 'MainColor';
+            Library.RegistryMap[ToggleInner].Properties.BackgroundColor3 = Toggle.Value and 'AccentFill' or 'MainColor';
             Library.RegistryMap[ToggleInner].Properties.BorderColor3 = Toggle.Value and 'AccentColorDark' or 'OutlineColor';
+
+            ToggleGradient.Enabled = Library.GradientEnabled and Toggle.Value;
+            ToggleGlow.Visible = Library.GlowEnabled and Toggle.Value;
         end;
 
         function Toggle:OnChanged(Func)
@@ -2237,7 +2358,7 @@ do
         });
 
         local Fill = Library:Create('Frame', {
-            BackgroundColor3 = Library.AccentColor;
+            BackgroundColor3 = Library.AccentFill;
             BorderColor3 = Library.AccentColorDark;
             Size = UDim2.new(0, 0, 1, 0);
             ZIndex = 7;
@@ -2245,12 +2366,19 @@ do
         });
 
         Library:AddToRegistry(Fill, {
-            BackgroundColor3 = 'AccentColor';
+            BackgroundColor3 = 'AccentFill';
             BorderColor3 = 'AccentColorDark';
         });
 
+        Library:AddAccentGradient(Fill);
+        local FillGlow = Library:AddGlow(Fill, { SizeMul = 0.6; Cond = function() return Fill.Size.X.Offset > 0 end });
+
+        local function GetHideBorderColor()
+            return Library.GradientEnabled and Library.AccentColor2 or Library.AccentColor;
+        end;
+
         local HideBorderRight = Library:Create('Frame', {
-            BackgroundColor3 = Library.AccentColor;
+            BackgroundColor3 = GetHideBorderColor();
             BorderSizePixel = 0;
             Position = UDim2.new(1, 0, 0, 0);
             Size = UDim2.new(0, 1, 1, 0);
@@ -2259,7 +2387,7 @@ do
         });
 
         Library:AddToRegistry(HideBorderRight, {
-            BackgroundColor3 = 'AccentColor';
+            BackgroundColor3 = GetHideBorderColor;
         });
 
         local DisplayLabel = Library:CreateLabel({
@@ -2280,7 +2408,7 @@ do
         end
 
         function Slider:UpdateColors()
-            Fill.BackgroundColor3 = Library.AccentColor;
+            Fill.BackgroundColor3 = Library.AccentFill;
             Fill.BorderColor3 = Library.AccentColorDark;
         end;
 
@@ -2299,6 +2427,7 @@ do
             Fill.Size = UDim2.new(0, X, 1, 0);
 
             HideBorderRight.Visible = not (X == Slider.MaxSize or X == 0);
+            FillGlow.Visible = Library.GlowEnabled and X > 0;
         end;
 
         function Slider:OnChanged(Func)
@@ -3011,6 +3140,7 @@ do
         Parent = InnerFrame;
     });
 
+    Library:AddGlow(WatermarkOuter, { ZIndex = 199; SizeMul = 0.8 });
     Library.Watermark = WatermarkOuter;
     Library.WatermarkText = WatermarkLabel;
     Library:MakeDraggable(Library.Watermark);
@@ -3042,7 +3172,7 @@ do
     }, true);
 
     local ColorFrame = Library:Create('Frame', {
-        BackgroundColor3 = Library.AccentColor;
+        BackgroundColor3 = Library.AccentFill;
         BorderSizePixel = 0;
         Size = UDim2.new(1, 0, 0, 2);
         ZIndex = 102;
@@ -3050,8 +3180,9 @@ do
     });
 
     Library:AddToRegistry(ColorFrame, {
-        BackgroundColor3 = 'AccentColor';
+        BackgroundColor3 = 'AccentFill';
     }, true);
+    Library:AddAccentGradient(ColorFrame, nil, 0);
 
     local KeybindLabel = Library:CreateLabel({
         Size = UDim2.new(1, 0, 0, 20);
@@ -3160,7 +3291,7 @@ function Library:Notify(Text, Time)
     });
 
     local LeftColor = Library:Create('Frame', {
-        BackgroundColor3 = Library.AccentColor;
+        BackgroundColor3 = Library.AccentFill;
         BorderSizePixel = 0;
         Position = UDim2.new(0, -1, 0, -1);
         Size = UDim2.new(0, 3, 1, 2);
@@ -3169,8 +3300,10 @@ function Library:Notify(Text, Time)
     });
 
     Library:AddToRegistry(LeftColor, {
-        BackgroundColor3 = 'AccentColor';
+        BackgroundColor3 = 'AccentFill';
     }, true);
+    Library:AddAccentGradient(LeftColor, nil, 90);
+    Library:AddGlow(NotifyOuter, { SizeMul = 0.7 });
 
     pcall(NotifyOuter.TweenSize, NotifyOuter, UDim2.new(0, XSize + 8 + 4, 0, YSize), 'Out', 'Quad', 0.4, true);
 
@@ -3253,6 +3386,7 @@ function Library:CreateWindow(...)
 
     Library._WindowInner = Inner;
     Library._WindowOuter = Outer;
+    Library._WindowGlow = Library:AddGlow(Outer, { ZIndex = 0; SizeMul = 1.5 });
 
     local WindowLabel = Library:CreateLabel({
         Position = UDim2.new(0, 7, 0, 0);
@@ -3494,7 +3628,7 @@ function Library:CreateWindow(...)
             });
 
             local Highlight = Library:Create('Frame', {
-                BackgroundColor3 = Library.AccentColor;
+                BackgroundColor3 = Library.AccentFill;
                 BorderSizePixel = 0;
                 Size = UDim2.new(1, 0, 0, 2);
                 ZIndex = 5;
@@ -3502,8 +3636,9 @@ function Library:CreateWindow(...)
             });
 
             Library:AddToRegistry(Highlight, {
-                BackgroundColor3 = 'AccentColor';
+                BackgroundColor3 = 'AccentFill';
             });
+            Library:AddAccentGradient(Highlight, nil, 0);
 
             local GroupboxLabel = Library:CreateLabel({
                 Size = UDim2.new(1, 0, 0, 18);
@@ -3589,7 +3724,7 @@ function Library:CreateWindow(...)
             });
 
             local Highlight = Library:Create('Frame', {
-                BackgroundColor3 = Library.AccentColor;
+                BackgroundColor3 = Library.AccentFill;
                 BorderSizePixel = 0;
                 Size = UDim2.new(1, 0, 0, 2);
                 ZIndex = 10;
@@ -3597,8 +3732,9 @@ function Library:CreateWindow(...)
             });
 
             Library:AddToRegistry(Highlight, {
-                BackgroundColor3 = 'AccentColor';
+                BackgroundColor3 = 'AccentFill';
             });
+            Library:AddAccentGradient(Highlight, nil, 0);
 
             local TabboxButtons = Library:Create('Frame', {
                 BackgroundTransparency = 1;
@@ -4054,6 +4190,55 @@ function Library:AddUISettings(Tab, Side)
     Box:AddToggle('UI_AllowOverlap', {
         Text = 'Allow windows overlap', Default = true,
         Callback = function(V) Library:SetAllowOverlap(V) end,
+    });
+
+    return Box;
+end;
+
+function Library:AddGlowGradientSettings(Tab, Side)
+    local Box = (Side == 'Right') and Tab:AddRightGroupbox('Glow & gradient')
+                                   or Tab:AddLeftGroupbox('Glow & gradient');
+
+    Box:AddToggle('UI_GlowEnabled', {
+        Text = 'Glow', Default = Library.GlowEnabled,
+        Callback = function(V) Library:SetGlow(V) end,
+    });
+
+    Box:AddSlider('UI_GlowSize', {
+        Text = 'Glow size', Default = Library.GlowSize, Min = 1, Max = 20, Rounding = 0, Suffix = 'px',
+        Callback = function(V) Library:SetGlow(nil, V) end,
+    });
+
+    Box:AddSlider('UI_GlowIntensity', {
+        Text = 'Glow intensity', Default = Library.GlowIntensity, Min = 5, Max = 100, Rounding = 0, Suffix = '%',
+        Callback = function(V) Library:SetGlow(nil, nil, V) end,
+    });
+
+    Box:AddToggle('UI_GlowFollowAccent', {
+        Text = 'Glow follows accent', Default = Library.GlowFollowAccent,
+        Callback = function(V) Library.GlowFollowAccent = V; Library:UpdateGlows() end,
+    });
+
+    Box:AddLabel('Glow color'):AddColorPicker('UI_GlowColor', {
+        Default = Library.GlowColor, Title = 'Glow color',
+        Callback = function(C) Library.GlowColor = C; Library:UpdateGlows() end,
+    });
+
+    Box:AddDivider();
+
+    Box:AddToggle('UI_GradientEnabled', {
+        Text = 'Accent gradient', Default = Library.GradientEnabled,
+        Callback = function(V) Library:SetGradient(V) end,
+    });
+
+    Box:AddLabel('Gradient color 2'):AddColorPicker('UI_GradientColor2', {
+        Default = Library.AccentColor2, Title = 'Gradient end color',
+        Callback = function(C) Library:SetGradient(nil, C) end,
+    });
+
+    Box:AddSlider('UI_GradientRotation', {
+        Text = 'Gradient angle', Default = Library.GradientRotation, Min = 0, Max = 360, Rounding = 0, Suffix = '°',
+        Callback = function(V) Library:SetGradient(nil, nil, V) end,
     });
 
     return Box;

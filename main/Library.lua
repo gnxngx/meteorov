@@ -4228,7 +4228,7 @@ function Library:_AddGlowGradientToBox(Box)
     });
 
     Box:AddToggle('UI_GlowFollowAccent', {
-        Text = 'Glow follows accent', Default = Library.GlowFollowAccent,
+        Text = 'Glow accent', Default = Library.GlowFollowAccent,
         Callback = function(V) Library.GlowFollowAccent = V; Library:UpdateGlows() end,
     });
 

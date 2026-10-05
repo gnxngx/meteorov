@@ -29,21 +29,21 @@ local Library = {
     FontColor = Color3.fromRGB(255, 255, 255);
     MainColor = Color3.fromRGB(36, 36, 36);
     BackgroundColor = Color3.fromRGB(28, 28, 28);
-    AccentColor = Color3.fromRGB(61, 180, 136);
+    AccentColor = Color3.fromRGB(0, 250, 157);
     OutlineColor = Color3.fromRGB(55, 55, 55);
     RiskColor = Color3.fromRGB(255, 50, 50);
 
     Black = Color3.new(0, 0, 0);
 
-    AccentColor2 = Color3.fromRGB(140, 255, 0);
+    AccentColor2 = Color3.fromRGB(72, 255, 178);
     AccentFill = Color3.new(1, 1, 1);
     GradientEnabled = true;
     GradientRotation = 0;
     GlowEnabled = true;
-    GlowSize = 20;
+    GlowSize = 15;
     GlowIntensity = 20;
     GlowFollowAccent = true;
-    GlowColor = Color3.fromRGB(255, 255, 255);
+    GlowColor = Color3.fromRGB(0, 250, 157);
     _Glows = {};
     _AccentGradients = {};
 
@@ -4223,7 +4223,7 @@ function Library:_AddGlowGradientToBox(Box)
     });
 
     Box:AddSlider('UI_GlowIntensity', {
-        Text = 'Glow intensity', Default = Library.GlowIntensity, Min = 5, Max = 100, Rounding = 0, Suffix = '%',
+        Text = 'Glow intensity', Default = Library.GlowIntensity, Min = 5, Max = 50, Rounding = 0, Suffix = '%',
         Callback = function(V) Library:SetGlow(nil, nil, V) end,
     });
 

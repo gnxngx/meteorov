@@ -40,8 +40,8 @@ local Library = {
     GradientEnabled = true;
     GradientRotation = 0;
     GlowEnabled = true;
-    GlowSize = 6;
-    GlowIntensity = 50;
+    GlowSize = 8;
+    GlowIntensity = 60;
     GlowFollowAccent = true;
     GlowColor = Color3.fromRGB(61, 180, 136);
     _Glows = {};
@@ -583,7 +583,7 @@ function Library:SetGradient(Enabled, Color2, Rotation)
     Library:UpdateColorsUsingRegistry();
 end;
 
-local GLOW_IMAGE = 'rbxassetid://5028857084';
+local GLOW_LAYERS = 8;
 
 function Library:GetGlowColor()
     return Library.GlowFollowAccent and Library.AccentColor or Library.GlowColor;
@@ -591,37 +591,54 @@ end;
 
 function Library:AddGlow(Parent, Opts)
     Opts = Opts or {};
-    local Glow = Library:Create('ImageLabel', {
+    local Z = Opts.ZIndex or math.max(Parent.ZIndex - 1, 0);
+
+    local Glow = Library:Create('Frame', {
         Name = 'Glow';
         BackgroundTransparency = 1;
         BorderSizePixel = 0;
-        Image = GLOW_IMAGE;
-        ScaleType = Enum.ScaleType.Slice;
-        SliceCenter = Rect.new(24, 24, 276, 276);
-        ImageColor3 = Library:GetGlowColor();
-        ImageTransparency = 1 - Library.GlowIntensity / 100;
-        ZIndex = Opts.ZIndex or math.max(Parent.ZIndex - 1, 0);
+        Size = UDim2.new(1, 0, 1, 0);
+        ZIndex = Z;
         Visible = false;
         Parent = Parent;
     });
 
-    Library._Glows[Glow] = { Cond = Opts.Cond; SizeMul = Opts.SizeMul or 1 };
+    local Layers, Corners = {}, {};
+    for i = 1, GLOW_LAYERS do
+        local Layer = Library:Create('Frame', {
+            BackgroundColor3 = Library:GetGlowColor();
+            BackgroundTransparency = 1;
+            BorderSizePixel = 0;
+            ZIndex = Z;
+            Parent = Glow;
+        });
+        Corners[i] = Library:Create('UICorner', { Parent = Layer });
+        Layers[i] = Layer;
+    end;
+
+    Library._Glows[Glow] = { Cond = Opts.Cond; SizeMul = Opts.SizeMul or 1; Layers = Layers; Corners = Corners };
     Library:UpdateGlows();
     return Glow;
 end;
 
 function Library:UpdateGlows()
     local Color = Library:GetGlowColor();
-    local Trans = 1 - math.clamp(Library.GlowIntensity, 0, 100) / 100;
+    local Trans = 1 - (math.clamp(Library.GlowIntensity, 0, 100) / 100) * 0.2;
     for Glow, Data in next, Library._Glows do
         if not Glow.Parent then
             Library._Glows[Glow] = nil;
         else
-            local S = math.floor(Library.GlowSize * Data.SizeMul);
-            Glow.ImageColor3 = Color;
-            Glow.ImageTransparency = Trans;
-            Glow.Size = UDim2.new(1, S * 2, 1, S * 2);
-            Glow.Position = UDim2.new(0, -S, 0, -S);
+            local S = Library.GlowSize * Data.SizeMul;
+            local N = #Data.Layers;
+            for i = 1, N do
+                local O = math.max(1, math.floor(S * i / N + 0.5));
+                local Layer = Data.Layers[i];
+                Layer.BackgroundColor3 = Color;
+                Layer.BackgroundTransparency = Trans;
+                Layer.Size = UDim2.new(1, O * 2, 1, O * 2);
+                Layer.Position = UDim2.new(0, -O, 0, -O);
+                Data.Corners[i].CornerRadius = UDim.new(0, O);
+            end;
             Glow.Visible = Library.GlowEnabled and (not Data.Cond or Data.Cond());
         end;
     end;

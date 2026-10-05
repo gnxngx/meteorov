@@ -35,15 +35,14 @@ local Library = {
 
     Black = Color3.new(0, 0, 0);
 
-    -- ===== Glow / Gradient settings =====
-    AccentColor2 = Color3.fromRGB(80, 140, 255);   -- второй цвет градиента
-    AccentFill = Color3.fromRGB(61, 180, 136);     -- что реально ставится в BackgroundColor3 акцентных заливок
-    GradientEnabled = false;
-    GradientRotation = 0;                          -- 0 = слева направо, 90 = сверху вниз
+    AccentColor2 = Color3.fromRGB(80, 140, 255);
+    AccentFill = Color3.new(1, 1, 1);
+    GradientEnabled = true;
+    GradientRotation = 0;
     GlowEnabled = true;
-    GlowSize = 6;                                  -- радиус свечения в px
-    GlowIntensity = 50;                            -- 0..100 (прозрачность = 1 - intensity/100)
-    GlowFollowAccent = true;                       -- свечение берёт AccentColor
+    GlowSize = 6;
+    GlowIntensity = 50;
+    GlowFollowAccent = true;
     GlowColor = Color3.fromRGB(61, 180, 136);
     _Glows = {};
     _AccentGradients = {};
@@ -541,9 +540,8 @@ function Library:UpdateColorsUsingRegistry()
     Library:UpdateGlows();
 end;
 
--- ================= Gradient =================
 function Library:RefreshAccent()
-    -- при включённом градиенте заливка должна быть белой: UIGradient умножается на BackgroundColor3
+
     Library.AccentFill = Library.GradientEnabled and Color3.new(1, 1, 1) or Library.AccentColor;
 end;
 
@@ -554,7 +552,6 @@ function Library:GetAccentGradient()
     });
 end;
 
--- Cond (необяз.) — функция, когда градиент должен быть включён (например только пока Toggle.Value == true)
 function Library:AddAccentGradient(Frame, Cond, Rotation)
     local G = Library:Create('UIGradient', {
         Color = Library:GetAccentGradient();
@@ -586,14 +583,12 @@ function Library:SetGradient(Enabled, Color2, Rotation)
     Library:UpdateColorsUsingRegistry();
 end;
 
--- ================= Glow =================
 local GLOW_IMAGE = 'rbxassetid://5028857084';
 
 function Library:GetGlowColor()
     return Library.GlowFollowAccent and Library.AccentColor or Library.GlowColor;
 end;
 
--- Opts: Size (px), ZIndex, Cond (функция видимости), Always (игнорировать Library.GlowEnabled — нет)
 function Library:AddGlow(Parent, Opts)
     Opts = Opts or {};
     local Glow = Library:Create('ImageLabel', {
@@ -4192,12 +4187,13 @@ function Library:AddUISettings(Tab, Side)
         Callback = function(V) Library:SetAllowOverlap(V) end,
     });
 
+    Library:_AddGlowGradientToBox(Box);
+
     return Box;
 end;
 
-function Library:AddGlowGradientSettings(Tab, Side)
-    local Box = (Side == 'Right') and Tab:AddRightGroupbox('Glow & gradient')
-                                   or Tab:AddLeftGroupbox('Glow & gradient');
+function Library:_AddGlowGradientToBox(Box)
+    Box:AddDivider();
 
     Box:AddToggle('UI_GlowEnabled', {
         Text = 'Glow', Default = Library.GlowEnabled,
@@ -4242,6 +4238,12 @@ function Library:AddGlowGradientSettings(Tab, Side)
     });
 
     return Box;
+end;
+
+function Library:AddGlowGradientSettings(Tab, Side)
+    local Box = (Side == 'Right') and Tab:AddRightGroupbox('Glow & gradient')
+                                   or Tab:AddLeftGroupbox('Glow & gradient');
+    return Library:_AddGlowGradientToBox(Box);
 end;
 
 getgenv().Library = Library

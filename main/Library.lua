@@ -38,7 +38,7 @@ local Library = {
     AccentColor2 = Color3.fromRGB(72, 255, 178);
     AccentFill = Color3.new(1, 1, 1);
     GradientEnabled = true;
-    GradientRotation = 0;
+    GradientRotation = 165;
     GlowEnabled = true;
     GlowSize = 15;
     GlowIntensity = 20;
@@ -4250,7 +4250,7 @@ function Library:_AddGlowGradientToBox(Box)
     });
 
     Box:AddSlider('UI_GradientRotation', {
-        Text = 'Gradient angle', Default = Library.GradientRotation, Min = 0, Max = 360, Rounding = 0, Suffix = '°',
+        Text = 'Angle', Default = Library.GradientRotation, Min = 0, Max = 360, Rounding = 0, Suffix = '°',
         Callback = function(V) Library:SetGradient(nil, nil, V) end,
     });
 

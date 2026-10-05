@@ -4223,7 +4223,7 @@ function Library:_AddGlowGradientToBox(Box)
     });
 
     Box:AddSlider('UI_GlowIntensity', {
-        Text = 'Glow intensity', Default = Library.GlowIntensity, Min = 5, Max = 50, Rounding = 0, Suffix = '%',
+        Text = 'Glow intensity', Default = Library.GlowIntensity, Min = 10, Max = 35, Rounding = 0, Suffix = '%',
         Callback = function(V) Library:SetGlow(nil, nil, V) end,
     });
 

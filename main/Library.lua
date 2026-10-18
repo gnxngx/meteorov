@@ -4218,22 +4218,22 @@ function Library:_AddGlowGradientToBox(Box)
     });
 
     Box:AddSlider('UI_GlowSize', {
-        Text = 'Glow size', Default = Library.GlowSize, Min = 1, Max = 20, Rounding = 0, Suffix = 'px',
+        Text = 'Size', Default = Library.GlowSize, Min = 1, Max = 20, Rounding = 0, Suffix = 'px',
         Callback = function(V) Library:SetGlow(nil, V) end,
     });
 
     Box:AddSlider('UI_GlowIntensity', {
-        Text = 'Glow intensity', Default = Library.GlowIntensity, Min = 10, Max = 35, Rounding = 0, Suffix = '%',
+        Text = 'Intensity', Default = Library.GlowIntensity, Min = 10, Max = 35, Rounding = 0, Suffix = '%',
         Callback = function(V) Library:SetGlow(nil, nil, V) end,
     });
 
     Box:AddToggle('UI_GlowFollowAccent', {
-        Text = 'Glow accent', Default = Library.GlowFollowAccent,
+        Text = 'Accent', Default = Library.GlowFollowAccent,
         Callback = function(V) Library.GlowFollowAccent = V; Library:UpdateGlows() end,
     });
 
     Box:AddLabel('Glow color'):AddColorPicker('UI_GlowColor', {
-        Default = Library.GlowColor, Title = 'Glow color',
+        Default = Library.GlowColor, Title = 'Color Glow',
         Callback = function(C) Library.GlowColor = C; Library:UpdateGlows() end,
     });
 
